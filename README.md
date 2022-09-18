@@ -7,8 +7,11 @@ Experiments with Go and SDL2
 Prerequisites
 -------------
 
+`github.com/veandco/go-sdl2` will be downloaded during the first compilation.
 
-SDL2 must be installed. Under Linux Debian-like:
+The library [SDL2](http://libsdl.org) must be installed. 
+
+Under Linux Debian-like:
 
 
 	sudo apt install libsdl2-*
@@ -28,7 +31,7 @@ Note: Installation of Go a Raspberry Pi
 
 
 Following the instuctions at <https://www.e-tinkers.com/2019/06/better-way-to-install-golang-go-on-raspberry-pi/>,
-save the following script in ~/bin/go_installer.sh
+save the following script in `~/bin/go_installer.sh`
 
 
 	export GOLANG="$(curl -s https://go.dev/dl/ | awk -F[\>\<] '/linux-armv6l/ && !/beta/ {print $5;exit}')"
