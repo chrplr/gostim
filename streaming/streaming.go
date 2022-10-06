@@ -1,37 +1,30 @@
+// Displays png files from ./images folder
+// Time-stamp: <2022-07-20 20:11:57 christophe@pallier.org>
 package main
-
 
 import (
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 	"sort"
-	"io/ioutil"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/img"
 )
 
-// const (
-// 	screenWidth = 640
-// 	screenHeight = 480
-// )
+const (
+	picsWidth = 768
+	picsHeight = 768
+)
 
 // returns the list of png files in folder (alphabetically sorted by name)
-func getPics(folder string) []string {
-	var pics []string
-	files, err := ioutil.ReadDir(folder)
+func getPics(folder, pattern string) []string {
+	files, err := filepath.Glob(filepath.Join(folder, pattern))
 	if err != nil {
 		fmt.Println(err)
 		return nil
 	}
-	
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), ".png") {
-			pics = append(pics, f.Name())
-		}
-	}
-	sort.Strings(pics)
-	return pics
+	sort.Strings(files)
+	return files
 }
 
 
@@ -45,7 +38,7 @@ func run() int {
 	var pics []*sdl.Texture
 	var timings []uint64
 
-
+	// initialisation 
 	window, err := sdl.CreateWindow("", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
 		0, 0, sdl.WINDOW_FULLSCREEN_DESKTOP)
 	if err != nil {
@@ -63,35 +56,37 @@ func run() int {
 
 	screen_width, screen_height, _  = renderer.GetOutputSize()
 
-	for _, f := range getPics("42_texture_streaming") {
-		tex, err := img.LoadTexture(renderer, "42_texture_streaming/" + f)
+	// load the images
+	for _, f := range getPics("images/", "*.png") {
+		fmt.Println(f)
+		tex, err := img.LoadTexture(renderer, f)
 		if err != nil {
-			fmt.Printf("Error loading %s\n", f)
+			fmt.Printf("Error (%s) loading %s\n", img.GetError(), f)
 			return 2
 		}
-		pics = append(pics, tex) 
+		// We should check the size of the image
+		pics = append(pics, tex)
 	}
-	
-	
+
+	// main loop (display)
 	running := true
-
-	sdl.Delay(1000)
-
-	
 	for running {
 
 		renderer.SetDrawColor(0, 0, 0, 255) // clear screen
 		renderer.Clear()
 
-		r.X = screen_width / 2
-		r.Y = screen_height / 2 
-		r.W = 64
-		r.H = 205
+		r.W = picsWidth
+		r.H = picsHeight
+		r.X = (screen_width - r.W) / 2
+		r.Y = (screen_height - r.H) / 2
 
 		for _, tex := range pics {
 			renderer.Copy(tex, nil, &r)
+			// in case variable size images, we would need:
+			// _, _, picWidth, picHeight, err := tex.Query()
+			// 
 			renderer.Present()
-			sdl.Delay(100)
+			sdl.Delay(50)
 			timings = append(timings, sdl.GetPerformanceCounter())
 		}
 
