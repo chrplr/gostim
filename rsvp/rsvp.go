@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
@@ -31,17 +33,26 @@ func readList(fname string) []Trial {
 
 	fileScanner := bufio.NewScanner(f)
 	fileScanner.Split(bufio.ScanLines)
-	fileScanner.Scan() // skip the first line which contains the header (col names)
+	// fileScanner.Scan() // skip the first line which contains the header (col names)
 
 	list := make([]Trial, 0, 8000)
 
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
 		var t Trial
-		_, err := fmt.Sscanf(line, "%s\t%f\t%f", &t.item, &t.onset, &t.duration)
+		tokens := strings.Split(line, "\t")
+		//_, err := fmt.Sscanf(line, "%[^\t]\t%f\t%f", &t.item, &t.onset, &t.duration)
+		t.item = tokens[0]
+		t.onset, err = strconv.ParseFloat(tokens[1], 64)
 		if err != nil {
-			panic("Malformed line: " + line)
+			panic(err)
 		}
+
+		t.duration, err = strconv.ParseFloat(tokens[2], 64)
+		if err != nil {
+			panic(err)
+		}
+
 		list = append(list, t)
 	}
 	return list
