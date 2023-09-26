@@ -4,16 +4,20 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
-	"github.com/veandco/go-sdl2/sdl"
+
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 const (
-	picsWidth = 768
-	picsHeight = 768
+	screen_height = 768
+	screen_width  = 1024
+	picsWidth     = 768
+	picsHeight    = 768
 )
 
 // returns the list of png files in folder (alphabetically sorted by name)
@@ -27,9 +31,6 @@ func getPics(folder, pattern string) []string {
 	return files
 }
 
-
-
-
 func run() int {
 	var window *sdl.Window
 	var renderer *sdl.Renderer
@@ -38,23 +39,24 @@ func run() int {
 	var pics []*sdl.Texture
 	var timings []uint64
 
-	// initialisation 
+	// initialisation
 	window, err := sdl.CreateWindow("", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		0, 0, sdl.WINDOW_FULLSCREEN_DESKTOP)
+		screen_width, screen_height, sdl.WINDOW_FULLSCREEN)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create window: %s\n", err)
 		return 1
 	}
 	defer window.Destroy()
 
-	renderer, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED | sdl.RENDERER_PRESENTVSYNC)
+	renderer, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED|sdl.RENDERER_PRESENTVSYNC)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
 		return 2
 	}
 	defer renderer.Destroy()
 
-	screen_width, screen_height, _  = renderer.GetOutputSize()
+	screen_width, screen_height, _ = renderer.GetOutputSize()
+	log.Println(screen_height, screen_width)
 
 	// load the images
 	for _, f := range getPics("images/", "*.png") {
@@ -84,12 +86,11 @@ func run() int {
 			renderer.Copy(tex, nil, &r)
 			// in case variable size images, we would need:
 			// _, _, picWidth, picHeight, err := tex.Query()
-			// 
+			//
 			renderer.Present()
 			sdl.Delay(50)
 			timings = append(timings, sdl.GetPerformanceCounter())
 		}
-
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
@@ -103,8 +104,8 @@ func run() int {
 	}
 
 	h := float64(sdl.GetPerformanceFrequency())
-	for i:=1; i < len(timings); i++ {
-		fmt.Println(float64(timings [i]-timings[i - 1]) / h)
+	for i := 1; i < len(timings); i++ {
+		fmt.Println(float64(timings[i]-timings[i-1]) / h)
 	}
 	return 0
 }

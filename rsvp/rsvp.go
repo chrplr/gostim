@@ -139,6 +139,11 @@ func run(tsvfile string) (err error) {
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: ./rsvp  wordlist.tsv\n\nwhere wolrdlist.tsv is a tab-separated file with three columns: Word, OnseTYime, Duration")
+		return
+	}
+
 	if err := run(os.Args[1]); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

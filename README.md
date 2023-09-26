@@ -2,7 +2,7 @@ Experiments with Go and SDL2
 ============================
 <christophe@pallier.org>
 
-
+This is just a few proof of concept demos of programming psychological experiments using [Go](http://go.dev).
 
 Prerequisites
 -------------
@@ -11,15 +11,21 @@ Prerequisites
 
 The library [SDL2](http://libsdl.org) must be installed. 
 
-Under Linux Debian-like:
-
+* Under Linux Debian-like:
 
 	sudo apt install libsdl2-*
 
+* Under MacOS:
+
+        brew install sdl2{,_image,_mixer,_ttf,_gfx} pkg-config
 
 
 Compilation
 -----------
+
+Each subfolder is independent.
+
+For example, to compile the streaming code:
 
 	cd streaming
 	go build streaming.go

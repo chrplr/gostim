@@ -1,95 +1,68 @@
-// Assess FrameRate
-// author: Christophe Pallier
+// Displays a moving vertical bar between two horizontal flashing bar
+// Author: Christophe Pallier <christophe@pallier.org>
 // Licence: GPL-3
 
 package main
 
 import (
 	"fmt"
-	"os"
+	"slices"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var window *sdl.Window
+var renderer *sdl.Renderer
 var timerResolution float64
+var screenWidth, screenHeight int32
 
-func toMs(ticks uint64) float64 {
+func toMilliseconds(ticks uint64) float64 {
 	return 1000.0 * float64(ticks) / timerResolution
 }
 
-func run() int {
-	var window *sdl.Window
-	var renderer *sdl.Renderer
-	var screenWidth, screenHeight int32
-	var rect, bar sdl.Rect
-	var xpos int32
-	var skip int32
-	var origin, start, end, dt uint64
-	var timings []float64
-	var startTimes []uint64
-	var running, visibleRect bool
+func run() (timings []float64) {
 
-	window, err := sdl.CreateWindow("", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		0, 0, sdl.WINDOW_FULLSCREEN_DESKTOP)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create window: %s\n", err)
-		return 1
-	}
-	defer window.Destroy()
+	rectTop := sdl.Rect{X: 0, Y: 0, W: screenWidth, H: 200}
+	rectBottom := sdl.Rect{X: 0, Y: screenHeight - 200, W: screenWidth, H: 200}
 
-	renderer, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED|sdl.RENDERER_PRESENTVSYNC)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
-		return 2
-	}
-	defer renderer.Destroy()
+	bar := sdl.Rect{X: 0, Y: 250, W: 8, H: screenHeight - 500}
+	var xpos int32 = 0
+	var skip int32 = 8
 
-	screenWidth, screenHeight, _ = renderer.GetOutputSize()
-	timerResolution = float64(sdl.GetPerformanceFrequency())
-
-	// rect properties
-	rect.X = screenWidth / 2
-	rect.Y = 0
-	rect.W = 400
-	rect.H = 200
-
-	// bar properties
-	xpos = 0
-	skip = 8
-
-	running = true
-	visibleRect = true
-
-	sdl.Delay(1000)
-
-	origin = sdl.GetPerformanceCounter()
+	loop := 0
+	running := true
+	visibleRect := true
 
 	for running {
 
-		start = sdl.GetPerformanceCounter() - origin
-		startTimes = append(startTimes, start)
+		loop++
 
-		renderer.SetDrawColor(0, 0, 0, 255) // clear screen
+		start := sdl.GetPerformanceCounter()
+
+		// clear screen
+		renderer.SetDrawColor(0, 0, 0, 255)
 		renderer.Clear()
 
+		// display horizontal rectangles
+		visibleRect = loop%8 == 0
 		if visibleRect {
 			renderer.SetDrawColor(255, 255, 255, 255)
-			renderer.FillRect(&rect)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
 		} else {
 			renderer.SetDrawColor(0, 0, 0, 255)
-			renderer.FillRect(&rect)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
 		}
-		visibleRect = !visibleRect
 
+		// display vertical bar & move it
 		bar.X = xpos
-		bar.Y = 0
 		bar.W = skip
-		bar.H = screenHeight
 		renderer.SetDrawColor(255, 255, 255, 255)
 		renderer.FillRect(&bar)
-
 		xpos = (xpos + skip) % screenWidth
 
+		// detect any key press
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
 			case *sdl.QuitEvent:
@@ -99,38 +72,48 @@ func run() int {
 			}
 		}
 
-		end = sdl.GetPerformanceCounter() - origin
-		dt = end - start
-		// sdl.Delay(0.016 - dt/timerResolution)
-		timings = append(timings, toMs(dt))
 		renderer.Present()
 
+		delta := toMilliseconds(sdl.GetPerformanceCounter() - start)
+		timings = append(timings, delta)
 	}
-
-	/* for i := 1; i < len(timings); i++ {
-		fmt.Println(float64(startTimes[i])/float64(timerResolution),
-			float64(startTimes[i]-startTimes[i-1])/float64(timerResolution),
-			float64(timings[i])/float64(timerResolution))
-	}
-	*/
-
-	fmt.Println(hist(timings, 10, 1.0/60.0))
-	return 0
+	return timings
 }
 
-func hist(timings []float64, nbins int, binsize float64) []uint {
-	hist := make([]uint, nbins)
+func printHistogram(timings []float64) {
+	hist := make([]uint, 1+uint(slices.Max(timings)))
 	for _, v := range timings {
-		for i := 0; i < nbins; i++ {
-			if v < float64(i+1)*binsize {
-				hist[i]++
-				break
-			}
-		}
+		i := uint(v)
+		hist[i]++
 	}
-	return hist
+
+	fmt.Println("time(ms) N")
+	for index, num := range hist {
+		fmt.Printf("%4d %5d\n", index, num)
+	}
 }
 
 func main() {
-	os.Exit(run())
+	var err error
+
+	//window, err := sdl.CreateWindow("", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
+	//	0, 0, sdl.WINDOW_FULLSCREEN_DESKTOP)
+	if window, err = sdl.CreateWindow("", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 1920, 1080, sdl.WINDOW_FULLSCREEN); err != nil {
+		panic(err)
+	}
+	defer window.Destroy()
+
+	if renderer, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED|sdl.RENDERER_PRESENTVSYNC); err != nil {
+		panic(err)
+	}
+	defer renderer.Destroy()
+
+	sdl.Delay(3000)
+
+	screenWidth, screenHeight, _ = renderer.GetOutputSize()
+	timerResolution = float64(sdl.GetPerformanceFrequency())
+
+	timings := run()
+	printHistogram(timings)
+
 }
