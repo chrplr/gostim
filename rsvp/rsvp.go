@@ -1,3 +1,4 @@
+// presentation of
 package main
 
 import (
@@ -24,7 +25,28 @@ type Trial struct {
 	item     string
 }
 
-func readList(fname string) []Trial {
+func newTrial(line string) Trial {
+	var t Trial
+	var err error
+
+	tokens := strings.Split(line, "\t")
+	//_, err := fmt.Sscanf(line, "%[^\t]\t%f\t%f", &t.item, &t.onset, &t.duration)
+
+	t.item = tokens[0]
+
+	t.onset, err = strconv.ParseFloat(tokens[1], 64)
+	if err != nil {
+		panic(err)
+	}
+
+	t.duration, err = strconv.ParseFloat(tokens[2], 64)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func ReadListOfTrials(fname string) []Trial {
 	f, err := os.Open(fname)
 	if err != nil {
 		panic(err)
@@ -38,24 +60,35 @@ func readList(fname string) []Trial {
 	list := make([]Trial, 0, 8000)
 
 	for fileScanner.Scan() {
-		line := fileScanner.Text()
-		var t Trial
-		tokens := strings.Split(line, "\t")
-		//_, err := fmt.Sscanf(line, "%[^\t]\t%f\t%f", &t.item, &t.onset, &t.duration)
-		t.item = tokens[0]
-		t.onset, err = strconv.ParseFloat(tokens[1], 64)
-		if err != nil {
-			panic(err)
-		}
-
-		t.duration, err = strconv.ParseFloat(tokens[2], 64)
-		if err != nil {
-			panic(err)
-		}
-
-		list = append(list, t)
+		list = append(list, newTrial(fileScanner.Text()))
 	}
+
 	return list
+}
+
+func WaitForKey() sdl.Keycode {
+	sdl.FlushEvents(0x300, 0x400)
+	var keyCode sdl.Keycode
+	running := true
+	for running {
+		event := sdl.WaitEvent() // wait here until an event is in the event queue
+		switch t := event.(type) {
+		case sdl.QuitEvent:
+			running = false
+			keyCode = sdl.K_ESCAPE
+		case sdl.KeyboardEvent:
+			keyCode = t.Keysym.Sym
+			running = false
+		}
+	}
+	return keyCode
+}
+
+func WaitForMRISync() {
+	running := true
+	for running {
+		running = WaitForKey() != sdl.K_t
+	}
 }
 
 func run(tsvfile string) (err error) {
@@ -64,7 +97,7 @@ func run(tsvfile string) (err error) {
 	var surface *sdl.Surface
 	var text *sdl.Surface
 
-	list := readList(tsvfile)
+	list := ReadListOfTrials(tsvfile)
 
 	if err = ttf.Init(); err != nil {
 		return
@@ -140,7 +173,7 @@ func run(tsvfile string) (err error) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: ./rsvp  wordlist.tsv\n\nwhere wolrdlist.tsv is a tab-separated file with three columns: Word, OnseTYime, Duration")
+		fmt.Println("Usage: ./rsvp  wordlist.tsv\n\nwhere wolrdlist.tsv is a tab-separated file with three columns: Word, OnseTime, Duration")
 		return
 	}
 

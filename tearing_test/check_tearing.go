@@ -167,7 +167,7 @@ func Abs(x int32) int32 {
 	return x
 }
 
-// freq & samplingFreq in Hz, duration in ms
+// SineWave generates an array containg a sine wave; freq & samplingFreq in Hz, duration in ms
 /* func SineWave(freq int, duration int, amplitude int, samplingFreq int) []int16 {
 	length := (duration * samplingFreq) / 1000
 	signal := make([]int16, length)
@@ -178,8 +178,68 @@ func Abs(x int32) int32 {
 	return signal
 }
 */
+
+func AVtest() (timings []float64) {
+	testSound, err := mix.LoadWAV("tone440.wav")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer testSound.Free()
+
+	rectTop := sdl.Rect{X: 0, Y: 0, W: screenWidth, H: 200}
+	rectBottom := sdl.Rect{X: 0, Y: screenHeight - 200, W: screenWidth, H: 200}
+
+	loop := 0
+	running := true
+	visibleRect := true
+
+	for running {
+
+		loop++
+
+		start := sdl.GetPerformanceCounter()
+
+		// clear screen
+		renderer.SetDrawColor(0, 0, 0, 255)
+		renderer.Clear()
+
+		// display horizontal rectangles
+		visibleRect = loop%60 < 30
+		if visibleRect {
+			renderer.SetDrawColor(255, 255, 255, 255)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
+		} else {
+			renderer.SetDrawColor(0, 0, 0, 255)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
+		}
+
+		renderer.Present()
+		delta := toMilliseconds(sdl.GetPerformanceCounter() - start)
+		timings = append(timings, delta)
+
+		if loop%30 == 0 {
+			testSound.Play(-1, 0)
+		}
+
+		// Process key press
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch event.(type) {
+			case *sdl.QuitEvent:
+				running = false
+			case *sdl.KeyboardEvent:
+				running = false
+			}
+		}
+	}
+	return timings[1:]
+}
+
 func run() (timings []float64) {
+
 	soundOn := true
+	// preloading sound
 	testSound, err := mix.LoadWAV("tone440.wav")
 	if err != nil {
 		log.Println(err)
@@ -263,7 +323,100 @@ func run() (timings []float64) {
 		delta := toMilliseconds(sdl.GetPerformanceCounter() - start)
 		timings = append(timings, delta)
 	}
-	return timings
+	return timings[2:]
+}
+
+func run_fixedvelocity() (timings []float64) {
+
+	soundOn := true
+	// preloading sound
+	testSound, err := mix.LoadWAV("tone440.wav")
+	if err != nil {
+		log.Println(err)
+		soundOn = false
+	}
+	defer testSound.Free()
+
+	rectTop := sdl.Rect{X: 0, Y: 0, W: screenWidth, H: 200}
+	rectBottom := sdl.Rect{X: 0, Y: screenHeight - 200, W: screenWidth, H: 200}
+
+	bar := sdl.Rect{X: 0, Y: 250, W: 8, H: screenHeight - 500}
+	var xpos int32 = 0
+	var skip int32 = 8
+
+	loop := 0
+	running := true
+	visibleRect := true
+	ticksLastFrame := sdl.GetPerformanceCounter()
+
+	for running {
+
+		loop++
+
+		ticksNow := sdl.GetPerformanceCounter()
+		timeStep := toMilliseconds(ticksNow - ticksLastFrame)
+		ticksLastFrame = ticksNow
+
+		// clear screen
+		renderer.SetDrawColor(0, 0, 0, 255)
+		renderer.Clear()
+
+		// display horizontal rectangles
+		visibleRect = loop%8 == 0
+		if visibleRect {
+			renderer.SetDrawColor(255, 255, 255, 255)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
+		} else {
+			renderer.SetDrawColor(0, 0, 0, 255)
+			renderer.FillRect(&rectTop)
+			renderer.FillRect(&rectBottom)
+		}
+
+		// display vertical bar & move it
+		bar.X = xpos
+		bar.W = 8
+		renderer.SetDrawColor(255, 255, 255, 255)
+		renderer.FillRect(&bar)
+		if (xpos+skip > 0) && (xpos+skip < screenWidth) {
+			xpos = xpos + skip*int32(timeStep)
+		} else { // invert direction of movement & play tone
+			skip = -skip
+			if soundOn {
+				if _, err := testSound.Play(-1, 0); err != nil {
+					log.Println(err)
+				}
+			}
+		}
+
+		// Process key press
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch t := event.(type) {
+			case *sdl.QuitEvent:
+				running = false
+			case *sdl.KeyboardEvent:
+				switch t.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					running = false
+				case sdl.K_RIGHT:
+					skip = skip + 8
+					log.Printf("skip = %d W=%d\n", skip, bar.W)
+				case sdl.K_LEFT:
+					if Abs(skip) >= 16 {
+						skip = skip - 8
+						log.Printf("skip = %d W=%d\n", skip, bar.W)
+					}
+				}
+			}
+		}
+
+		sdl.Delay(3)
+		renderer.Present()
+
+		delta := toMilliseconds(sdl.GetPerformanceCounter() - ticksLastFrame)
+		timings = append(timings, delta)
+	}
+	return timings[2:]
 }
 
 func printHistogram(timings []float64) {
@@ -337,6 +490,7 @@ func main() {
 	timerResolution = float64(sdl.GetPerformanceFrequency())
 
 	timings := run()
+	//timings := AVtest()
 	printHistogram(timings)
 
 }
